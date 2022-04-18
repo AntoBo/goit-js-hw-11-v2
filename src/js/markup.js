@@ -6,8 +6,3 @@ export function newDraw(data) {
   const markup = data.hits.map(cardTemplate);
   galleryEl.innerHTML = markup.join('');
 }
-
-export function appendDraw(data) {
-  const markup = data.hits.map(cardTemplate);
-  galleryEl.insertAdjacentHTML('beforeend', markup.join(''));
-}

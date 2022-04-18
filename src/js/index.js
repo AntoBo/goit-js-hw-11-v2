@@ -1,9 +1,13 @@
 import '../sass/main.scss';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
+import Pagination from 'tui-pagination';
+import 'tui-pagination/dist/tui-pagination.css';
+
 import dataFoundAlert from './notify.js';
 import getPictures from './fetch.js';
 import * as Markup from './markup';
+import * as TUI from './tui-pagination';
 
 //get controls
 const el = {
@@ -11,34 +15,16 @@ const el = {
   endResultsText: document.querySelector('.end-results'),
   newSearchLink: document.querySelector('.new-search'),
 };
-const loadMoreEl = {
-  btn: document.querySelector('.load-more'),
-  content: {
-    LOAD_MORE: 'Load more!',
-    LOADING: 'Loading...',
-  },
-  toggle() {
-    if (this.btn.disabled) {
-      this.btn.disabled = false;
-      this.btn.textContent = this.content.LOAD_MORE;
-    } else {
-      this.btn.disabled = true;
-      this.btn.textContent = this.content.LOADING;
-    }
-  },
-};
+
 let lightbox = new SimpleLightbox('.gallery a');
 
 //listeners
 el.formSearch.addEventListener('submit', onSearchSubmit);
-el.newSearchLink.addEventListener('click', onNewSearchLinkClick);
-loadMoreEl.btn.addEventListener('click', onLoadMoreClick);
 
 //search vars
 const search = {
   query: '',
   page: null,
-  cardsCount: 0,
 };
 
 //click handlers
@@ -51,15 +37,18 @@ async function onSearchSubmit(event) {
   try {
     search.page = 1;
 
-    //fetch data
+    //fetch data per page 1
     const data = await getPictures(search.query, search.page);
 
     //check if search result is not 0 and notify
     dataFoundAlert(data);
 
-    //update UI controls
-    search.cardsCount = data.hits.length;
-    updateControls(data);
+    //TUI pagination inside!
+    const pagination = new Pagination('pagination', TUI.getOptions(data.totalHits));
+    TUI.container.classList.remove('hidden');
+    pagination.on('afterMove', event => {
+      onPaginationClick(search.query, event.page);
+    });
 
     //draw data here
     Markup.newDraw(data);
@@ -70,51 +59,9 @@ async function onSearchSubmit(event) {
     console.log('query failed with error: ', error);
   }
 }
-//load more
-async function onLoadMoreClick(event) {
-  // window.scrollBy(0, -window.innerHeight);
 
-  //async part
-  try {
-    loadMoreEl.toggle();
-    search.page += 1;
-
-    //fetch more data
-    const data = await getPictures(search.query, search.page);
-
-    //update UI controls
-    search.cardsCount += data.hits.length;
-    updateControls(data);
-
-    //draw data here
-    Markup.appendDraw(data);
-
-    //upd lightbox
-    lightbox.refresh();
-    loadMoreEl.toggle();
-  } catch (error) {
-    console.log('query failed with error: ', error);
-  }
-}
-//scroll up and focus on input
-function onNewSearchLinkClick(event) {
-  event.preventDefault();
-  el.formSearch.searchQuery.focus({ preventScroll: true });
-  el.formSearch.reset();
-
-  window.scrollTo({
-    top: 0,
-    behavior: 'smooth',
-  });
-}
-
-//other maintaining functions
-function updateControls(data) {
-  if (search.cardsCount >= data.totalHits) {
-    loadMoreEl.btn.classList.add('hidden');
-    el.endResultsText.classList.remove('hidden');
-  } else {
-    el.endResultsText.classList.add('hidden');
-    loadMoreEl.btn.classList.remove('hidden');
-  }
+async function onPaginationClick(query, page) {
+  const data = await getPictures(query, page);
+  Markup.newDraw(data);
+  lightbox.refresh();
 }
